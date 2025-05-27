@@ -1,83 +1,368 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Project Hours Extractor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Hours Extractor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* Custom styles for the extractor */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            color: #374151; /* Default text color */
+        }
+        .section {
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            animation: fadeIn 0.5s ease-out; /* Fade-in animation for sections */
+        }
+        .button-red {
+            background-color: #b91c1c; /* Dark red for primary actions */
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem; /* Increased padding for better click area */
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease; /* Added transform and shadow transitions */
+            letter-spacing: 0.05em; /* Slightly increased letter spacing */
+        }
+        .button-red:hover {
+            background-color: #991b1b; /* Slightly darker red on hover */
+            transform: translateY(-2px); /* Slight lift on hover */
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* Subtle shadow on hover */
+        }
+        .button-red:active {
+            transform: translateY(0); /* Reset on click */
+            box-shadow: none; /* No shadow on active */
+        }
+        .input-label {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            display: block;
+            color: #374151; /* Darker gray for labels */
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.65rem; /* Slightly more padding */
+            border: 1px solid #d1d5db; /* Light gray border */
+            border-radius: 0.5rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Added transitions for input fields */
+        }
+        .form-input:focus, .form-select:focus {
+            border-color: #b91c1c; /* Red border on focus */
+            box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.3); /* Red shadow on focus */
+            outline: none;
+        }
+        .results-pre {
+            background: #f9fafb; /* Very light gray background for results */
+            border: 1px solid #e5e7eb; /* Light border for results */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace; /* Monospace font for code-like output */
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
+            color: #1f2937; /* Dark text for readability */
+            overflow-x: auto; /* Allow horizontal scrolling for long lines */
+        }
+        /* Custom modal styling (retained for consistency with the app's modal) */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            backdrop-filter: blur(5px); /* Blur background */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            margin: auto;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+        }
+        .close-button {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #9ca3af; /* Gray-400 */
+        }
+        .close-button:hover {
+            color: #6b7280; /* Gray-500 */
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
-<body>
-  <h2>Upload Excel File</h2>
-  <input type="file" id="fileInput" />
-  <button onclick="processFile()">Process</button>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-  <script>
-    function processFile() {
-      const fileInput = document.getElementById('fileInput');
-      if (!fileInput.files.length) return alert("Please upload a file.");
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="section w-full max-w-lg">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Project Hours Extractor</h2>
 
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        <div class="mb-6">
+            <label for="fileInput" class="input-label mb-2">Upload Excel File</label>
+            <input type="file" id="fileInput" accept=".xls,.xlsx"
+                   class="form-input block w-full text-sm text-gray-900 cursor-pointer bg-gray-50
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-blue-50 file:text-blue-700
+                          hover:file:bg-blue-100"/>
+        </div>
 
-        let results = [["Project Name", "Total Hours"]];
+        <button onclick="processFile()" class="button-red w-full">
+            Process File
+        </button>
 
-        workbook.SheetNames.forEach(sheetName => {
-          const sheet = workbook.Sheets[sheetName];
-          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        <div class="mt-8 bg-gray-50 p-4 rounded-lg border border-gray-200 h-48 overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Processing Log:</h3>
+            <pre id="log" class="results-pre"></pre>
+        </div>
+    </div>
 
-          let projectName = null;
-          let hoursCol = -1;
-          let startRow = 0;
+    <div id="customModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()">&times;</span>
+            <p id="modalMessage" class="text-lg font-medium text-gray-800"></p>
+            <button onclick="closeModal()"
+                    class="mt-6 button-red">
+                OK
+            </button>
+        </div>
+    </div>
 
-          for (let r = 0; r < Math.min(10, json.length); r++) {
-            for (let c = 0; c < json[r].length; c++) {
-              if (typeof json[r][c] === 'string' && json[r][c].toLowerCase().includes("project name")) {
-                projectName = json[r][c + 1];
-                break;
-              }
+    <script>
+        /**
+         * Displays a message in the processing log area.
+         * @param {string} msg - The message to log.
+         */
+        function log(msg) {
+            const logElement = document.getElementById('log');
+            logElement.textContent += msg + '\n';
+            logElement.scrollTop = logElement.scrollHeight; // Auto-scroll to bottom
+        }
+
+        /**
+         * Displays a custom modal with a given message.
+         * @param {string} message - The message to display in the modal.
+         */
+        function showModal(message) {
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('customModal').style.display = 'flex'; // Use flex to center
+        }
+
+        /**
+         * Hides the custom modal.
+         */
+        function closeModal() {
+            document.getElementById('customModal').style.display = 'none';
+        }
+
+        /**
+         * Parses a date string in DD/MM/YYYY format into a Date object.
+         * Returns null if the date string is invalid.
+         * @param {string} dateString - The date string to parse.
+         * @returns {Date|null} A Date object or null if parsing fails.
+         */
+        function parseDate(dateString) {
+            if (!dateString || typeof dateString !== 'string') {
+                return null;
             }
-            if (projectName) break;
-          }
-
-          for (let r = 0; r < json.length; r++) {
-            for (let c = 0; c < json[r].length; c++) {
-              if (typeof json[r][c] === 'string' && json[r][c].toLowerCase().includes("hours (for calculation)")) {
-                hoursCol = c;
-                startRow = r + 1;
-                break;
-              }
+            const parts = dateString.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+                const year = parseInt(parts[2], 10);
+                const date = new Date(year, month, day);
+                // Validate if the parsed date components match the input to catch invalid dates like 31/02/2023
+                if (date.getFullYear() === year && date.getMonth() === month && date.getDate() === day) {
+                    return date;
+                }
             }
-            if (hoursCol !== -1) break;
-          }
+            return null;
+        }
 
-          if (projectName && hoursCol !== -1) {
-            let lastNumber = null;
-            for (let r = startRow; r < json.length; r++) {
-              const val = json[r][hoursCol];
-              if (typeof val === "number") {
-                lastNumber = val;
-              }
+        /**
+         * Formats a Date object into a DD/MM/YYYY string.
+         * @param {Date} date - The Date object to format.
+         * @returns {string} The formatted date string.
+         */
+        function formatDate(date) {
+            if (!date instanceof Date || isNaN(date)) {
+                return ''; // Return empty string for invalid dates
+            }
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        /**
+         * Processes the uploaded Excel file to extract project hours and task dates.
+         */
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            // Clear previous log messages
+            document.getElementById('log').textContent = '';
+
+            if (!fileInput.files.length) {
+                showModal("Please upload an Excel file to process.");
+                return;
             }
 
-            if (lastNumber !== null) {
-              results.push([projectName, lastNumber]);
-            }
-          }
-        });
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    // Read the workbook from the array buffer
+                    const workbook = XLSX.read(data, { type: 'array' });
 
-        results = [results[0], ...results.slice(1).sort((a, b) => a[0].localeCompare(b[0]))];
+                    // Initialize results array with headers for the output Excel file, including new date columns
+                    let results = [["Project Name", "Total Hours", "First Date of Task", "Last Date of Task"]];
 
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(results);
-        XLSX.utils.book_append_sheet(wb, ws, "Summary");
+                    // Iterate over each sheet in the workbook
+                    workbook.SheetNames.forEach(sheetName => {
+                        const sheet = workbook.Sheets[sheetName];
+                        // Convert sheet data to JSON array of arrays, preserving empty cells as ""
+                        const json = XLSX.utils.sheet_to_json(sheet, { defval: "", header: 1 });
 
-        const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        saveAs(new Blob([wbout], { type: "application/octet-stream" }), "project_hours_summary.xlsx");
-      };
+                        log(`Processing sheet: "${sheetName}"`);
 
-      reader.readAsArrayBuffer(fileInput.files[0]);
-    }
-  </script>
+                        let projectName = null;
+                        let totalHours = 0; // This will now be a sum of individual hours
+                        let hoursCol = -1;
+                        let dateCol = -1;
+                        let headersRowIndex = -1;
+
+                        // --- Step 1: Extract Project Name from B1 ---
+                        const cellA1 = sheet['A1'] ? sheet['A1'].v : undefined;
+                        const cellB1 = sheet['B1'] ? sheet['B1'].v : undefined;
+
+                        if (typeof cellA1 === 'string' && cellA1.toLowerCase().trim() === 'project name' &&
+                            typeof cellB1 === 'string' && cellB1.trim() !== '') {
+                            projectName = cellB1.trim();
+                            log(`Found project name in B1: "${projectName}"`);
+                        } else {
+                            log(`Could not find project name in A1/B1 for sheet "${sheetName}". Skipping this sheet.`);
+                            return;
+                        }
+
+                        // --- Step 2: Search for the headers row and "Hours (For Calculation)" and "Date" columns ---
+                        for (let r = 0; r < Math.min(20, json.length); r++) {
+                            const row = json[r];
+                            const lowerRow = row.map(cell => (typeof cell === "string" ? cell.toLowerCase().trim() : ""));
+
+                            if (lowerRow.includes("hours(for calculation)") && lowerRow.includes("date")) {
+                                headersRowIndex = r;
+                                hoursCol = lowerRow.indexOf("hours(for calculation)");
+                                dateCol = lowerRow.indexOf("date");
+                                log(`Found headers row at index ${headersRowIndex}, hours column at index ${hoursCol}, and date column at index ${dateCol}.`);
+                                break;
+                            }
+                        }
+
+                        // --- Step 3: Sum hours and find first/last dates, excluding the final 'Total Hours' row ---
+                        if (projectName && hoursCol !== -1 && dateCol !== -1 && headersRowIndex !== -1) {
+                            let firstDate = null;
+                            let lastDate = null;
+
+                            // Iterate through rows starting from after headers
+                            for (let r = headersRowIndex + 1; r < json.length; r++) {
+                                const row = json[r];
+
+                                // Check if the current row contains "Total Hours(For Calculat)" to identify the *last row to exclude*
+                                if (row.length > 0 && typeof row[0] === 'string' && row[0].toLowerCase().includes('total hours(for calculat')) {
+                                    log(`Reached "Total Hours" row (row ${r}). Excluding this row from sum.`);
+                                    break; // Stop processing this sheet's data as we've reached the end
+                                }
+
+                                // Process individual task hours
+                                const hoursVal = row[hoursCol];
+                                if (typeof hoursVal === "number") {
+                                    totalHours += hoursVal;
+                                }
+
+                                // Process individual task dates
+                                const dateVal = row[dateCol];
+                                const currentDate = parseDate(dateVal);
+                                if (currentDate) {
+                                    if (!firstDate || currentDate < firstDate) {
+                                        firstDate = currentDate;
+                                    }
+                                    if (!lastDate || currentDate > lastDate) {
+                                        lastDate = currentDate;
+                                    }
+                                }
+                            }
+
+                            // --- Apply the division by 2 and rounding to 0 decimals here ---
+                            totalHours = Math.round(totalHours / 2);
+                            log(`Final summed hours (divided by 2 and rounded): ${totalHours}`);
+
+                            // Add the extracted data to the results array
+                            results.push([
+                                projectName,
+                                totalHours, // This is now the sum of individual hours divided by 2 and rounded
+                                firstDate ? formatDate(firstDate) : 'N/A',
+                                lastDate ? formatDate(lastDate) : 'N/A'
+                            ]);
+                            log(`Added summary for "${projectName}": Summed Hours (divided by 2 and rounded): ${totalHours}, First Task: ${firstDate ? formatDate(firstDate) : 'N/A'}, Last Task: ${lastDate ? formatDate(lastDate) : 'N/A'}.`);
+                        } else {
+                            log(`Skipped sheet "${sheetName}": Missing required columns or incorrect data structure.`);
+                        }
+                    });
+
+                    // If only headers are present in the results, no valid project data was found across all sheets
+                    if (results.length === 1) {
+                        showModal("No valid project data found in the uploaded file. Please ensure sheets contain 'Project Name' in A1, and 'Hours (For Calculation)' and 'Date' as column headers within the first 20 rows, and a 'Total Hours(For Calculat)' row to mark the end of data.");
+                        return;
+                    }
+
+                    // Sort the results alphabetically by project name (excluding the header row)
+                    results = [results[0], ...results.slice(1).sort((a, b) => a[0].localeCompare(b[0]))];
+
+                    // Create a new workbook and add the summary sheet
+                    const wb = XLSX.utils.book_new();
+                    const ws = XLSX.utils.aoa_to_sheet(results);
+                    XLSX.utils.book_append_sheet(wb, ws, "Project Summary");
+
+                    // Write the workbook to an array buffer and save it as an Excel file
+                    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+                    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "project_hours_summary.xlsx");
+                    log("Summary Excel file 'project_hours_summary.xlsx' generated successfully.");
+                    showModal("Project hours summary generated and downloaded!");
+
+                } catch (err) {
+                    console.error("Error during file processing:", err); // Log the full error object for debugging
+                    if (err.message && err.message.includes("Bad uncompressed size")) {
+                        log(`Error processing file: ${err.message}. This often indicates a corrupted or malformed Excel file.`);
+                        showModal(`An error occurred: The Excel file might be corrupted or in an unsupported format. Please try opening the file in Excel and re-saving it, or use a different file.`);
+                    } else {
+                        log(`Error processing file: ${err.message}`);
+                        showModal(`An unexpected error occurred: ${err.message}. Please check the file format or try again.`);
+                    }
+                }
+            };
+
+            // Read the uploaded file as an ArrayBuffer
+            reader.readAsArrayBuffer(fileInput.files[0]);
+        }
+    </script>
 </body>
 </html>
