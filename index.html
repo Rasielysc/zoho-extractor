@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Project Hours Extractor</title>
+</head>
+<body>
+  <h2>Upload Excel File</h2>
+  <input type="file" id="fileInput" />
+  <button onclick="processFile()">Process</button>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script>
+    function processFile() {
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files.length) return alert("Please upload a file.");
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        let results = [["Project Name", "Total Hours"]];
+
+        workbook.SheetNames.forEach(sheetName => {
+          const sheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          let projectName = null;
+          let hoursCol = -1;
+          let startRow = 0;
+
+          for (let r = 0; r < Math.min(10, json.length); r++) {
+            for (let c = 0; c < json[r].length; c++) {
+              if (typeof json[r][c] === 'string' && json[r][c].toLowerCase().includes("project name")) {
+                projectName = json[r][c + 1];
+                break;
+              }
+            }
+            if (projectName) break;
+          }
+
+          for (let r = 0; r < json.length; r++) {
+            for (let c = 0; c < json[r].length; c++) {
+              if (typeof json[r][c] === 'string' && json[r][c].toLowerCase().includes("hours (for calculation)")) {
+                hoursCol = c;
+                startRow = r + 1;
+                break;
+              }
+            }
+            if (hoursCol !== -1) break;
+          }
+
+          if (projectName && hoursCol !== -1) {
+            let lastNumber = null;
+            for (let r = startRow; r < json.length; r++) {
+              const val = json[r][hoursCol];
+              if (typeof val === "number") {
+                lastNumber = val;
+              }
+            }
+
+            if (lastNumber !== null) {
+              results.push([projectName, lastNumber]);
+            }
+          }
+        });
+
+        results = [results[0], ...results.slice(1).sort((a, b) => a[0].localeCompare(b[0]))];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(results);
+        XLSX.utils.book_append_sheet(wb, ws, "Summary");
+
+        const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        saveAs(new Blob([wbout], { type: "application/octet-stream" }), "project_hours_summary.xlsx");
+      };
+
+      reader.readAsArrayBuffer(fileInput.files[0]);
+    }
+  </script>
+</body>
+</html>
