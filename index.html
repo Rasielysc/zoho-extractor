@@ -311,9 +311,9 @@
                                 }
                             }
 
-                            // --- Apply the division by 2 and rounding to 0 decimals here ---
-                            totalHours = Math.round(totalHours / 2);
-                            log(`Final summed hours (divided by 2 and rounded): ${totalHours}`);
+                            // --- Apply the division by 2 and rounding to 1 decimal here ---
+                            totalHours = parseFloat((totalHours / 2).toFixed(1));
+                            log(`Final summed hours (divided by 2 and rounded to 1 decimal): ${totalHours}`);
 
                             // Add the extracted data to the results array
                             results.push([
